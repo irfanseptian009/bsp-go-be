@@ -28,6 +28,3 @@ tests/
 *.test
 *.out
 coverage.txt
-
-# Docs (generated)
-docs/
