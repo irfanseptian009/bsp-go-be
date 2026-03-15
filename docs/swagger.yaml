@@ -1,0 +1,476 @@
+basePath: /api
+definitions:
+  dto.AuthResponse:
+    properties:
+      accessToken:
+        type: string
+      user: {}
+    type: object
+  dto.CreateOccupationTypeRequest:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      premiumRate:
+        type: number
+    required:
+    - code
+    - name
+    - premiumRate
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.RegisterRequest:
+    properties:
+      email:
+        type: string
+      name:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - name
+    - password
+    type: object
+  dto.UpdateOccupationTypeRequest:
+    properties:
+      code:
+        type: string
+      name:
+        type: string
+      premiumRate:
+        type: number
+    type: object
+  models.Branch:
+    properties:
+      code:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      policies:
+        items:
+          $ref: '#/definitions/models.Policy'
+        type: array
+    type: object
+  models.ConstructionClass:
+    enum:
+    - KELAS_1
+    - KELAS_2
+    - KELAS_3
+    type: string
+    x-enum-varnames:
+    - ConstructionKelas1
+    - ConstructionKelas2
+    - ConstructionKelas3
+  models.InsuranceRequest:
+    properties:
+      address:
+        type: string
+      adminFee:
+        type: number
+      area:
+        type: string
+      basicPremium:
+        type: number
+      buildingPrice:
+        type: number
+      city:
+        type: string
+      constructionClass:
+        $ref: '#/definitions/models.ConstructionClass'
+      createdAt:
+        type: string
+      district:
+        type: string
+      duration:
+        type: integer
+      earthquake:
+        type: boolean
+      id:
+        type: string
+      invoiceNumber:
+        type: string
+      occupationType:
+        $ref: '#/definitions/models.OccupationType'
+      occupationTypeId:
+        type: string
+      policyNumber:
+        type: string
+      province:
+        type: string
+      status:
+        $ref: '#/definitions/models.RequestStatus'
+      totalAmount:
+        type: number
+      updatedAt:
+        type: string
+      user:
+        $ref: '#/definitions/models.User'
+      userId:
+        type: string
+    type: object
+  models.OccupationType:
+    properties:
+      code:
+        type: string
+      id:
+        type: string
+      insuranceRequests:
+        items:
+          $ref: '#/definitions/models.InsuranceRequest'
+        type: array
+      name:
+        type: string
+      policies:
+        items:
+          $ref: '#/definitions/models.Policy'
+        type: array
+      premiumRate:
+        type: number
+    type: object
+  models.Policy:
+    properties:
+      applicationNumber:
+        type: string
+      birthDate:
+        type: string
+      branch:
+        $ref: '#/definitions/models.Branch'
+      branchId:
+        type: string
+      buildingPrice:
+        type: number
+      createdAt:
+        type: string
+      duration:
+        type: integer
+      id:
+        type: string
+      name:
+        type: string
+      occupationType:
+        $ref: '#/definitions/models.OccupationType'
+      occupationTypeId:
+        type: string
+      policyNumber:
+        type: string
+      premium:
+        type: number
+      updatedAt:
+        type: string
+    type: object
+  models.RequestStatus:
+    enum:
+    - PENDING
+    - APPROVED
+    - REJECTED
+    type: string
+    x-enum-varnames:
+    - StatusPending
+    - StatusApproved
+    - StatusRejected
+  models.Role:
+    enum:
+    - CUSTOMER
+    - ADMIN
+    type: string
+    x-enum-varnames:
+    - RoleCustomer
+    - RoleAdmin
+  models.User:
+    properties:
+      createdAt:
+        type: string
+      email:
+        type: string
+      id:
+        type: string
+      insuranceRequests:
+        items:
+          $ref: '#/definitions/models.InsuranceRequest'
+        type: array
+      name:
+        type: string
+      role:
+        $ref: '#/definitions/models.Role'
+      updatedAt:
+        type: string
+    type: object
+info:
+  contact: {}
+  description: API documentation for Fire Insurance Management System (Go backend).
+  title: FIMS Backend API (Go)
+  version: "1.0"
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Login with email and password
+      parameters:
+      - description: Login payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Login
+      tags:
+      - Auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new customer account
+      parameters:
+      - description: Register payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/dto.AuthResponse'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties: true
+            type: object
+      summary: Register account
+      tags:
+      - Auth
+  /occupation-types:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.OccupationType'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: List occupation types
+      tags:
+      - Occupation Types
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Create occupation type payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dto.CreateOccupationTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.OccupationType'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Create occupation type
+      tags:
+      - Occupation Types
+  /occupation-types/{id}:
+    delete:
+      parameters:
+      - description: Occupation Type ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Delete occupation type
+      tags:
+      - Occupation Types
+    get:
+      parameters:
+      - description: Occupation Type ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OccupationType'
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Get occupation type by ID
+      tags:
+      - Occupation Types
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Occupation Type ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Update occupation type payload
+        in: body
+        name: payload
+        required: true
+        schema:
+          $ref: '#/definitions/dto.UpdateOccupationTypeRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.OccupationType'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties: true
+            type: object
+        "403":
+          description: Forbidden
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties: true
+            type: object
+        "409":
+          description: Conflict
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - BearerAuth: []
+      summary: Update occupation type
+      tags:
+      - Occupation Types
+schemes:
+- http
+- https
+securityDefinitions:
+  BearerAuth:
+    description: 'Use format: Bearer <token>'
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

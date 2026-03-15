@@ -1,0 +1,16 @@
+{
+  "name": "fims-backend-go-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Jest integration tests for backend-go",
+  "scripts": {
+    "test": "jest --runInBand",
+    "test:watch": "jest --watch",
+    "test:e2e": "jest --runInBand"
+  },
+  "devDependencies": {
+    "axios": "^1.9.0",
+    "dotenv": "^16.4.7",
+    "jest": "^30.0.5"
+  }
+}
