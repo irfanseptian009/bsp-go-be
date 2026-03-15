@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"io"
+
 	"github.com/gin-gonic/gin"
 	"github.com/irfanseptian/fims-backend/dto"
 	"github.com/irfanseptian/fims-backend/services"
@@ -43,6 +45,44 @@ func (h *UserHandler) UpdateProfile(c *gin.Context) {
 	user, err := h.service.Update(userID, req)
 	if err != nil {
 		utils.NotFound(c, err.Error())
+		return
+	}
+
+	utils.Success(c, user)
+}
+
+// UploadProfilePhoto handles POST /api/users/me/photo
+func (h *UserHandler) UploadProfilePhoto(c *gin.Context) {
+	userID := c.GetString("userId")
+
+	fileHeader, err := c.FormFile("photo")
+	if err != nil {
+		fileHeader, err = c.FormFile("file")
+	}
+	if err != nil {
+		fileHeader, err = c.FormFile("avatar")
+	}
+	if err != nil {
+		utils.ValidationError(c, "File foto wajib diisi dengan multipart/form-data (field: photo)")
+		return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		utils.InternalError(c, "Gagal membaca file foto")
+		return
+	}
+	defer file.Close()
+
+	content, err := io.ReadAll(io.LimitReader(file, 5*1024*1024+1))
+	if err != nil {
+		utils.InternalError(c, "Gagal memproses file foto")
+		return
+	}
+
+	user, err := h.service.UpdateProfilePhoto(userID, fileHeader.Filename, content)
+	if err != nil {
+		utils.ValidationError(c, err.Error())
 		return
 	}
 

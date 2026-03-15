@@ -10,10 +10,13 @@ import (
 
 // Config holds all application configuration.
 type Config struct {
-	Port        string
-	DatabaseURL string
-	JWTSecret   string
-	JWTExpiry   time.Duration
+	Port                   string
+	DatabaseURL            string
+	JWTSecret              string
+	JWTExpiry              time.Duration
+	SupabaseURL            string
+	SupabaseServiceRoleKey string
+	SupabaseStorageBucket  string
 }
 
 // Load reads configuration from environment variables.
@@ -35,12 +38,21 @@ func Load() *Config {
 
 	databaseURL := normalizeEnvValue(os.Getenv("DATABASE_URL"), "DATABASE_URL")
 	jwtSecret := normalizeEnvValue(os.Getenv("JWT_SECRET"), "JWT_SECRET")
+	supabaseURL := normalizeEnvValue(os.Getenv("SUPABASE_URL"), "SUPABASE_URL")
+	supabaseServiceRoleKey := normalizeEnvValue(os.Getenv("SUPABASE_SERVICE_ROLE_KEY"), "SUPABASE_SERVICE_ROLE_KEY")
+	supabaseStorageBucket := normalizeEnvValue(os.Getenv("SUPABASE_STORAGE_BUCKET"), "SUPABASE_STORAGE_BUCKET")
+	if supabaseStorageBucket == "" {
+		supabaseStorageBucket = "profile"
+	}
 
 	return &Config{
-		Port:        port,
-		DatabaseURL: databaseURL,
-		JWTSecret:   jwtSecret,
-		JWTExpiry:   jwtExpiry,
+		Port:                   port,
+		DatabaseURL:            databaseURL,
+		JWTSecret:              jwtSecret,
+		JWTExpiry:              jwtExpiry,
+		SupabaseURL:            supabaseURL,
+		SupabaseServiceRoleKey: supabaseServiceRoleKey,
+		SupabaseStorageBucket:  supabaseStorageBucket,
 	}
 }
 

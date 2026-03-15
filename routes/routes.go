@@ -13,7 +13,8 @@ import (
 func Setup(router *gin.Engine, cfg *config.Config) {
 	// ─── Initialize Services ───
 	authService := services.NewAuthService(cfg)
-	userService := services.NewUserService()
+	storageService := services.NewStorageService(cfg)
+	userService := services.NewUserService(storageService)
 	branchService := services.NewBranchService()
 	occupationTypeService := services.NewOccupationTypeService()
 	insuranceRequestService := services.NewInsuranceRequestService()
@@ -51,6 +52,7 @@ func Setup(router *gin.Engine, cfg *config.Config) {
 		{
 			users.GET("/me", userHandler.GetProfile)
 			users.PATCH("/me", userHandler.UpdateProfile)
+			users.POST("/me/photo", userHandler.UploadProfilePhoto)
 		}
 
 		// ── Branches ──
