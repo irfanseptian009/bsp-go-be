@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -32,10 +33,26 @@ func Load() *Config {
 		}
 	}
 
+	databaseURL := normalizeEnvValue(os.Getenv("DATABASE_URL"), "DATABASE_URL")
+	jwtSecret := normalizeEnvValue(os.Getenv("JWT_SECRET"), "JWT_SECRET")
+
 	return &Config{
 		Port:        port,
-		DatabaseURL: os.Getenv("DATABASE_URL"),
-		JWTSecret:   os.Getenv("JWT_SECRET"),
+		DatabaseURL: databaseURL,
+		JWTSecret:   jwtSecret,
 		JWTExpiry:   jwtExpiry,
 	}
+}
+
+func normalizeEnvValue(value string, key string) string {
+	v := strings.TrimSpace(value)
+	v = strings.Trim(v, "\"'")
+
+	prefix := key + "="
+	if strings.HasPrefix(v, prefix) {
+		v = strings.TrimSpace(strings.TrimPrefix(v, prefix))
+		v = strings.Trim(v, "\"'")
+	}
+
+	return v
 }
