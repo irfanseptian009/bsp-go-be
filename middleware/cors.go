@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -9,13 +10,28 @@ import (
 
 // CORS returns a Gin middleware for handling Cross-Origin Resource Sharing.
 func CORS() gin.HandlerFunc {
-	allowedOrigin := os.Getenv("ALLOWED_ORIGIN")
-	if allowedOrigin == "" {
-		allowedOrigin = "http://localhost:3000"
+	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+	if allowedOrigins == "" {
+		allowedOrigins = os.Getenv("ALLOWED_ORIGIN")
+	}
+	if allowedOrigins == "" {
+		allowedOrigins = "http://localhost:3000,https://bsp-fe.netlify.app"
+	}
+
+	allowedMap := map[string]bool{}
+	for _, origin := range strings.Split(allowedOrigins, ",") {
+		trimmed := strings.TrimSpace(origin)
+		if trimmed != "" {
+			allowedMap[trimmed] = true
+		}
 	}
 
 	return func(c *gin.Context) {
-		c.Writer.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+		origin := c.GetHeader("Origin")
+		if allowedMap[origin] {
+			c.Writer.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+		c.Writer.Header().Set("Vary", "Origin")
 		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
 		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization, accept, origin, Cache-Control, X-Requested-With")
 		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PATCH, DELETE, OPTIONS")
