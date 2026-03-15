@@ -5,13 +5,10 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/irfanseptian/fims-backend/docs"
 	"github.com/irfanseptian/fims-backend/config"
 	"github.com/irfanseptian/fims-backend/database"
 	"github.com/irfanseptian/fims-backend/middleware"
 	"github.com/irfanseptian/fims-backend/routes"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // @title FIMS Backend API (Go)
@@ -44,12 +41,10 @@ func main() {
 
 	// Register routes
 	routes.Setup(router, cfg)
-	router.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
 	// Start server
 	port := cfg.Port
 	log.Printf("🔥 FIMS Backend (Go) running on http://localhost:%s", port)
-	log.Printf("📘 Swagger Dashboard: http://localhost:%s/swagger/index.html", port)
 	if err := router.Run(":" + port); err != nil {
 		log.Fatalf("❌ Failed to start server: %v", err)
 	}
