@@ -1,0 +1,33 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+fims-backend
+
+# Environment
+.env
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Node (for test tooling)
+node_modules/
+package-lock.json
+
+# Test files
+tests/
+*.test
+*.out
+coverage.txt
+
+# Docs (generated)
+docs/

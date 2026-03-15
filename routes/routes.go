@@ -27,6 +27,11 @@ func Setup(router *gin.Engine, cfg *config.Config) {
 	insuranceRequestHandler := handlers.NewInsuranceRequestHandler(insuranceRequestService)
 	policyHandler := handlers.NewPolicyHandler(policyService)
 
+	// ─── Health Check ───
+	router.GET("/api/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
 	// ─── API Group ───
 	api := router.Group("/api")
 
