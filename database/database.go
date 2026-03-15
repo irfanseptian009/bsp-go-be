@@ -21,6 +21,7 @@ func Connect(cfg *config.Config) {
 	DB, err = gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{
 		Logger:                                   logger.Default.LogMode(logger.Info),
 		DisableForeignKeyConstraintWhenMigrating: true,
+		PrepareStmt:                              false,
 	})
 	if err != nil {
 		log.Fatalf("❌ Failed to connect to database: %v", err)
