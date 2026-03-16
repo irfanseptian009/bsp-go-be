@@ -21,11 +21,32 @@ func Seed() {
 	log.Println("🎉 Seeding complete!")
 	log.Println("─────────────────────────────────────")
 	log.Println("📋 Test accounts:")
-	log.Println("   Admin    : admin@fims.com     / admin123")
-	log.Println("   Customer : customer@fims.com  / customer123")
-	log.Println("   Customer : siti@fims.com      / customer123")
-	log.Println("   Customer : andi@fims.com      / customer123")
+	log.Println("   Admin    : admin@bsp.com     / admin123")
+	log.Println("   Customer : customer@bsp.com  / customer123")
+	log.Println("   Customer : siti@bsp.com      / customer123")
+	log.Println("   Customer : andi@bsp.com      / customer123")
 	log.Println("─────────────────────────────────────")
+}
+
+// Reset truncates application tables.
+func Reset() {
+	db := GetDB()
+
+	log.Println("🧹 Resetting database...")
+
+	if err := db.Exec(`
+		TRUNCATE TABLE
+			policies,
+			insurance_requests,
+			users,
+			branches,
+			occupation_types
+		RESTART IDENTITY CASCADE;
+	`).Error; err != nil {
+		log.Fatalf("❌ Failed to reset database: %v", err)
+	}
+
+	log.Println("✅ Database reset complete")
 }
 
 func seedBranches(db *gorm.DB) {
@@ -73,11 +94,11 @@ func seedUsers(db *gorm.DB) {
 	// Admin
 	adminPassword, _ := bcrypt.GenerateFromPassword([]byte("admin123"), 10)
 	var adminUser models.User
-	result := db.Where("email = ?", "admin@fims.com").First(&adminUser)
+	result := db.Where("email = ?", "admin@bsp.com").First(&adminUser)
 	if result.Error == gorm.ErrRecordNotFound {
 		db.Create(&models.User{
 			Name:     "Administrator",
-			Email:    "admin@fims.com",
+			Email:    "admin@bsp.com",
 			Password: string(adminPassword),
 			Role:     models.RoleAdmin,
 		})
@@ -86,9 +107,9 @@ func seedUsers(db *gorm.DB) {
 	// Customers
 	customerPassword, _ := bcrypt.GenerateFromPassword([]byte("customer123"), 10)
 	customers := []models.User{
-		{Name: "Budi Santoso", Email: "customer@fims.com", Password: string(customerPassword), Role: models.RoleCustomer},
-		{Name: "Siti Rahayu", Email: "siti@fims.com", Password: string(customerPassword), Role: models.RoleCustomer},
-		{Name: "Andi Wijaya", Email: "andi@fims.com", Password: string(customerPassword), Role: models.RoleCustomer},
+		{Name: "Budi Santoso", Email: "customer@bsp.com", Password: string(customerPassword), Role: models.RoleCustomer},
+		{Name: "Siti Rahayu", Email: "siti@bsp.com", Password: string(customerPassword), Role: models.RoleCustomer},
+		{Name: "Andi Wijaya", Email: "andi@bsp.com", Password: string(customerPassword), Role: models.RoleCustomer},
 	}
 
 	for _, c := range customers {

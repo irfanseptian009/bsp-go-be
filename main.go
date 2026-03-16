@@ -6,9 +6,9 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	_ "github.com/irfanseptian/fims-backend/docs"
 	"github.com/irfanseptian/fims-backend/config"
 	"github.com/irfanseptian/fims-backend/database"
+	_ "github.com/irfanseptian/fims-backend/docs"
 	"github.com/irfanseptian/fims-backend/middleware"
 	"github.com/irfanseptian/fims-backend/routes"
 	swaggerFiles "github.com/swaggo/files"
@@ -39,6 +39,11 @@ func main() {
 
 	// Connect to database & run migrations
 	database.Connect(cfg)
+
+	// Reset database if RESET_DB=true
+	if os.Getenv("RESET_DB") == "true" {
+		database.Reset()
+	}
 
 	// Run seed if SEED=true
 	if os.Getenv("SEED") == "true" {
