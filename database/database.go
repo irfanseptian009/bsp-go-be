@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/url"
+	"strings"
 
 	"github.com/irfanseptian/fims-backend/config"
 	"github.com/irfanseptian/fims-backend/models"
@@ -20,9 +22,10 @@ var DB *gorm.DB
 func Connect(cfg *config.Config) {
 	var err error
 	const migrationLockKey int64 = 9132026
+	stableDatabaseURL := ensureSearchPathPublic(cfg.DatabaseURL)
 
 	DB, err = gorm.Open(postgres.New(postgres.Config{
-		DSN:                  cfg.DatabaseURL,
+		DSN:                  stableDatabaseURL,
 		PreferSimpleProtocol: true,
 	}), &gorm.Config{
 		Logger:                                   logger.Default.LogMode(logger.Info),
@@ -51,23 +54,11 @@ func Connect(cfg *config.Config) {
 	dropLegacyConstraints()
 
 	// Auto-migrate all models
-	err = DB.AutoMigrate(
-		&models.User{},
-		&models.Branch{},
-		&models.OccupationType{},
-		&models.InsuranceRequest{},
-		&models.Policy{},
-	)
+	err = runMigrations()
 	if err != nil {
 		if isRetryableMigrationError(err) {
 			log.Printf("⚠️ Auto-migrate conflict detected (%v), retrying once...", err)
-			err = DB.AutoMigrate(
-				&models.User{},
-				&models.Branch{},
-				&models.OccupationType{},
-				&models.InsuranceRequest{},
-				&models.Policy{},
-			)
+			err = runMigrations()
 		}
 
 		if err != nil {
@@ -79,6 +70,71 @@ func Connect(cfg *config.Config) {
 
 	// Create enum types if not exists (PostgreSQL)
 	createEnumTypes()
+}
+
+func ensureSearchPathPublic(databaseURL string) string {
+	u, err := url.Parse(databaseURL)
+	if err != nil {
+		return databaseURL
+	}
+
+	query := u.Query()
+	searchPath := strings.TrimSpace(strings.ToLower(query.Get("search_path")))
+	if searchPath == "" {
+		query.Set("search_path", "public")
+		u.RawQuery = query.Encode()
+	}
+
+	return u.String()
+}
+
+func runMigrations() error {
+	type migratable interface {
+		TableName() string
+	}
+
+	modelEntries := []migratable{
+		models.User{},
+		models.Branch{},
+		models.OccupationType{},
+		models.InsuranceRequest{},
+		models.Policy{},
+	}
+
+	for _, m := range modelEntries {
+		err := DB.AutoMigrate(m)
+		if err == nil {
+			continue
+		}
+
+		if isRetryableMigrationError(err) && tableExistsAnySchema(m.TableName()) {
+			log.Printf("⚠️ Skip create for existing table '%s' after conflict: %v", m.TableName(), err)
+			continue
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+func tableExistsAnySchema(tableName string) bool {
+	var exists bool
+	err := DB.Raw(`
+		SELECT EXISTS (
+			SELECT 1
+			FROM pg_catalog.pg_class c
+			JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+			WHERE c.relkind = 'r' AND c.relname = ?
+		)
+	`, tableName).Scan(&exists).Error
+
+	if err != nil {
+		log.Printf("⚠️ Failed checking table existence for %s: %v", tableName, err)
+		return false
+	}
+
+	return exists
 }
 
 func isRetryableMigrationError(err error) bool {
