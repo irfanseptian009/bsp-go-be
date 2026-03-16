@@ -1,11 +1,13 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
 	"github.com/irfanseptian/fims-backend/config"
 	"github.com/irfanseptian/fims-backend/models"
+	"github.com/jackc/pgx/v5/pgconn"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -17,8 +19,12 @@ var DB *gorm.DB
 // Connect initializes the database connection and runs auto-migration.
 func Connect(cfg *config.Config) {
 	var err error
+	const migrationLockKey int64 = 9132026
 
-	DB, err = gorm.Open(postgres.Open(cfg.DatabaseURL), &gorm.Config{
+	DB, err = gorm.Open(postgres.New(postgres.Config{
+		DSN:                  cfg.DatabaseURL,
+		PreferSimpleProtocol: true,
+	}), &gorm.Config{
 		Logger:                                   logger.Default.LogMode(logger.Info),
 		DisableForeignKeyConstraintWhenMigrating: true,
 		PrepareStmt:                              false,
@@ -28,6 +34,15 @@ func Connect(cfg *config.Config) {
 	}
 
 	log.Println("✅ Database connected successfully")
+
+	if err := DB.Exec("SELECT pg_advisory_lock(?)", migrationLockKey).Error; err != nil {
+		log.Fatalf("❌ Failed to acquire migration lock: %v", err)
+	}
+	defer func() {
+		if err := DB.Exec("SELECT pg_advisory_unlock(?)", migrationLockKey).Error; err != nil {
+			log.Printf("⚠️ Failed to release migration lock: %v", err)
+		}
+	}()
 
 	// Ensure UUID extension and DB-level defaults are present.
 	ensureUUIDDefaults()
@@ -44,13 +59,39 @@ func Connect(cfg *config.Config) {
 		&models.Policy{},
 	)
 	if err != nil {
-		log.Fatalf("❌ Failed to auto-migrate: %v", err)
+		if isRetryableMigrationError(err) {
+			log.Printf("⚠️ Auto-migrate conflict detected (%v), retrying once...", err)
+			err = DB.AutoMigrate(
+				&models.User{},
+				&models.Branch{},
+				&models.OccupationType{},
+				&models.InsuranceRequest{},
+				&models.Policy{},
+			)
+		}
+
+		if err != nil {
+			log.Fatalf("❌ Failed to auto-migrate: %v", err)
+		}
 	}
 
 	log.Println("✅ Database migration completed")
 
 	// Create enum types if not exists (PostgreSQL)
 	createEnumTypes()
+}
+
+func isRetryableMigrationError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) {
+		return pgErr.Code == "42P07" || pgErr.Code == "42P05"
+	}
+
+	return false
 }
 
 // createEnumTypes ensures PostgreSQL enum types exist.
