@@ -17,7 +17,7 @@ import (
 
 // @title FIMS Backend API (Go)
 // @version 1.0
-// @description API documentation for Fire Insurance Management System (Go backend).
+// @description API documentation for Insurance Management System (Go backend).
 // @BasePath /api
 // @schemes http https
 // @securityDefinitions.apikey BearerAuth
@@ -45,9 +45,11 @@ func main() {
 		database.Reset()
 	}
 
-	// Run seed if SEED=true
-	if os.Getenv("SEED") == "true" {
+	// Run seed by default in local/dev (or force with SEED=true)
+	if shouldRunSeed() {
 		database.Seed()
+	} else {
+		log.Println("⏭️ Seed skipped (set SEED=true to force)")
 	}
 
 	// Setup Gin router
@@ -79,6 +81,16 @@ func shouldEnableSwagger() bool {
 	enableSwagger := strings.TrimSpace(strings.ToLower(os.Getenv("ENABLE_SWAGGER")))
 	if enableSwagger != "" {
 		return enableSwagger == "true" || enableSwagger == "1" || enableSwagger == "yes"
+	}
+
+	appEnv := strings.TrimSpace(strings.ToLower(os.Getenv("APP_ENV")))
+	return appEnv == "" || appEnv == "local" || appEnv == "development"
+}
+
+func shouldRunSeed() bool {
+	seedEnv := strings.TrimSpace(strings.ToLower(os.Getenv("SEED")))
+	if seedEnv != "" {
+		return seedEnv == "true" || seedEnv == "1" || seedEnv == "yes"
 	}
 
 	appEnv := strings.TrimSpace(strings.ToLower(os.Getenv("APP_ENV")))

@@ -1,168 +1,374 @@
-# FIMS Backend (Go + Gin)
+# BSP Backend (Go)
 
-Fire Insurance Management System — Backend API built with **Go**, **Gin**, and **GORM**, connected to **Supabase PostgreSQL**.
+Backend API untuk sistem asuransi kebakaran BSP, dibangun dengan Go, Gin, GORM, dan PostgreSQL (Supabase).
+
+Dokumen ini mencakup panduan setup lokal, konfigurasi environment, alur bisnis, endpoint API, testing, hingga deployment.
+
+---
+
+## Ringkasan Fitur
+
+- JWT authentication (`register`, `login`)
+- Role-based access control (`ADMIN`, `CUSTOMER`)
+- Master data: branch & occupation type
+- Insurance request workflow (create, approve, reject)
+- Policy management
+- Upload foto profil ke Supabase Storage
+- Swagger API docs
+- Integration testing dengan Jest
+
+---
 
 ## Tech Stack
 
-| Technology | Purpose |
+| Area | Teknologi |
 |---|---|
-| [Go 1.22+](https://go.dev/) | Language |
-| [Gin](https://gin-gonic.com/) | HTTP framework |
-| [GORM](https://gorm.io/) | ORM |
-| [PostgreSQL (Supabase)](https://supabase.com/) | Database |
-| [JWT](https://github.com/golang-jwt/jwt) | Authentication |
-| [bcrypt](https://pkg.go.dev/golang.org/x/crypto/bcrypt) | Password hashing |
+| Language | Go 1.23 |
+| Web Framework | Gin |
+| ORM | GORM |
+| Database | PostgreSQL (Supabase) |
+| Auth | JWT (`github.com/golang-jwt/jwt/v5`) |
+| Security | bcrypt (`golang.org/x/crypto/bcrypt`) |
+| API Docs | Swaggo (`swag`, `gin-swagger`) |
+| Storage | Supabase Storage |
+| Test | Jest + Axios |
+| Container | Docker (multi-stage) |
+| Deploy | Railway |
 
-## Project Structure
+---
 
-```
-backend-go/
-├── main.go                      # Entry point
-├── config/config.go             # Environment config
+## Struktur Proyek
+
+```text
+bsp-go-be/
+├── main.go
+├── config/
 ├── database/
-│   ├── database.go              # DB connection + migration
-│   └── seed.go                  # Seed data
-├── models/                      # GORM models
-├── dto/                         # Request/Response structs
-├── middleware/                   # Auth, CORS, Role guard
-├── handlers/                    # HTTP handlers (controllers)
-├── services/                    # Business logic
-├── routes/routes.go             # Route registration
-└── utils/response.go            # Response helpers
+├── models/
+├── dto/
+├── middleware/
+├── handlers/
+├── services/
+├── routes/
+├── utils/
+├── docs/
+├── tests/
+├── Dockerfile
+└── railway.toml
 ```
 
-## Quick Start
+Arsitektur menggunakan pola `handler -> service -> database/model`.
 
-### 1. Install Go
+---
 
-Download from [https://go.dev/dl/](https://go.dev/dl/) or use Homebrew:
+## Prasyarat
+
+- Go 1.23+
+- PostgreSQL (direkomendasikan Supabase)
+- Node.js (untuk test Jest)
+
+---
+
+## Setup Lokal
+
+1) Install dependency Go:
 
 ```bash
-brew install go
+go mod tidy
 ```
 
-### 2. Setup Environment
+2) Install dependency test:
 
 ```bash
-cd backend-go
+npm install
+```
+
+3) Siapkan environment:
+
+```bash
 cp .env.example .env
 ```
 
-Edit `.env` with your Supabase credentials:
+---
+
+## Konfigurasi Environment
+
+| Variable | Wajib | Default | Deskripsi |
+|---|---|---|---|
+| `PORT` | Tidak | `3001` | Port server |
+| `DATABASE_URL` | Ya | - | Koneksi PostgreSQL |
+| `JWT_SECRET` | Ya | - | Secret JWT |
+| `JWT_EXPIRY` | Tidak | `24h` | Masa berlaku token |
+| `SUPABASE_URL` | Opsional* | - | URL project Supabase |
+| `SUPABASE_SERVICE_ROLE_KEY` | Opsional* | - | Service role key Supabase |
+| `SUPABASE_STORAGE_BUCKET` | Tidak | `profile` | Bucket foto profil |
+| `APP_ENV` | Tidak | `development` | Mode aplikasi |
+| `ENABLE_SWAGGER` | Tidak | Auto by env | Paksa on/off Swagger |
+| `ALLOWED_ORIGIN` | Tidak | - | Satu origin CORS |
+| `ALLOWED_ORIGINS` | Tidak | `http://localhost:3000,https://bsp-fe.netlify.app` | Banyak origin CORS |
+| `SEED` | Tidak | `false` | Jalankan seed saat startup |
+| `RESET_DB` | Tidak | `false` | Reset tabel saat startup |
+
+\* Opsional jika tidak menggunakan fitur upload foto profil.
+
+Contoh minimal:
 
 ```env
 PORT=3001
 DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
 JWT_SECRET=your-jwt-secret-key-minimum-32-characters-long
 JWT_EXPIRY=24h
+APP_ENV=development
+ENABLE_SWAGGER=true
+ALLOWED_ORIGINS=http://localhost:3000,https://bsp-fe.netlify.app
 ```
 
-### 3. Install Dependencies
+---
+
+## Menjalankan Aplikasi
+
+Jalankan server:
 
 ```bash
-go mod tidy
+go run .
 ```
 
-### 4. Run the Server
+URL penting:
+
+- Base URL: `http://localhost:3001`
+- API: `http://localhost:3001/api`
+- Health: `http://localhost:3001/api/health`
+- Swagger: `http://localhost:3001/swagger/index.html`
+
+Menjalankan dengan seed:
 
 ```bash
-go run main.go
+SEED=true go run .
 ```
 
-Swagger UI tersedia di:
-
-```text
-http://localhost:3001/swagger/index.html
-```
-
-### 5. Seed Database (First Time Only)
+Reset database saat startup:
 
 ```bash
-SEED=true go run main.go
+RESET_DB=true go run .
 ```
 
-This creates:
-- 5 branches (Kuningan, Tebet, Harmoni, Sudirman, Kelapa Gading)
-- 5 occupation types (Rumah, Ruko, Gedung Kantor, Gudang, Apartemen)
-- 1 admin account: `admin@fims.com` / `admin123`
-- 3 customer accounts: `customer@fims.com`, `siti@fims.com`, `andi@fims.com` / `customer123`
+Reset + seed:
 
-## API Documentation (Swagger)
+```bash
+RESET_DB=true SEED=true go run .
+```
 
-1. Install generator (sekali saja):
+---
+
+## Akun Seed Default
+
+- `admin@bsp.com` / `admin123` (ADMIN)
+- `customer@bsp.com` / `customer123` (CUSTOMER)
+- `siti@bsp.com` / `customer123`
+- `andi@bsp.com` / `customer123`
+- `dewi@bsp.com` / `customer123`
+- `rizky@bsp.com` / `customer123`
+
+---
+
+## Rumus Bisnis
+
+Insurance request:
+
+$$
+basicPremium = \frac{buildingPrice \times premiumRate}{1000} \times duration
+$$
+
+$$
+totalAmount = basicPremium + 10000
+$$
+
+Policy:
+
+$$
+premium = \frac{buildingPrice \times premiumRate}{1000} \times duration + 2500
+$$
+
+Format nomor otomatis:
+
+- Invoice: `K.001.XXXXX`
+- Policy approval request: `K.01.001.XXXXX`
+- Policy module: `001.{year}.XXXXX`
+- Application: `00001{year}XXXXXX`
+
+---
+
+## API Endpoints
+
+Semua endpoint non-public wajib header:
+
+`Authorization: Bearer <token>`
+
+### Public
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `GET /api/health`
+
+### Users
+
+- `GET /api/users/me`
+- `PATCH /api/users/me`
+- `POST /api/users/me/photo` (multipart field: `photo`)
+
+### Branches
+
+- `GET /api/branches`
+- `GET /api/branches/:id`
+- `POST /api/branches` (ADMIN)
+- `PATCH /api/branches/:id` (ADMIN)
+- `DELETE /api/branches/:id` (ADMIN)
+
+### Occupation Types
+
+- `GET /api/occupation-types`
+- `GET /api/occupation-types/:id`
+- `POST /api/occupation-types` (ADMIN)
+- `PATCH /api/occupation-types/:id` (ADMIN)
+- `DELETE /api/occupation-types/:id` (ADMIN)
+
+### Insurance Requests
+
+- `POST /api/insurance-requests` (CUSTOMER)
+- `GET /api/insurance-requests/my-requests` (CUSTOMER)
+- `GET /api/insurance-requests/invoice/:invoiceNumber`
+- `GET /api/insurance-requests` (ADMIN)
+- `GET /api/insurance-requests/:id`
+- `PATCH /api/insurance-requests/:id/approve` (ADMIN)
+- `PATCH /api/insurance-requests/:id/reject` (ADMIN)
+
+### Policies
+
+- `GET /api/policies` (mendukung query: `name`, `branchId`, `occupationTypeId`)
+- `GET /api/policies/:id`
+- `POST /api/policies` (ADMIN)
+- `PATCH /api/policies/:id` (ADMIN)
+- `DELETE /api/policies/:id` (ADMIN)
+
+---
+
+## Validasi Payload (Ringkas)
+
+- Register: `email` valid, `password` min 6
+- Insurance request: `duration` 1..10, `buildingPrice` > 0, `constructionClass` salah satu `KELAS_1|KELAS_2|KELAS_3`
+- Policy: `birthDate` format `YYYY-MM-DD` atau RFC3339, `duration` 1..10, `buildingPrice` > 0
+
+---
+
+## Swagger Documentation
+
+Install generator (sekali):
 
 ```bash
 go install github.com/swaggo/swag/cmd/swag@latest
 ```
 
-2. Generate docs:
+Generate docs:
 
 ```bash
 swag init -g main.go -o docs
 ```
 
-3. Jalankan server lalu buka:
+---
 
-```text
-http://localhost:3001/swagger/index.html
-```
+## Testing (Jest Integration)
 
-## Testing (Jest E2E)
-
-Testing disiapkan di folder [tests](tests) untuk menguji endpoint backend-go via HTTP.
+Jalankan:
 
 ```bash
-npm install
 npm run test:e2e
 ```
 
 Catatan:
-- Secara default test akan mencoba menjalankan backend-go otomatis.
-- Jika server sudah jalan manual, jalankan dengan env:
+
+- Secara default test mencoba menyalakan backend otomatis.
+- Jika backend sudah berjalan manual:
 
 ```bash
 BACKEND_GO_MANUAL_SERVER=true npm run test:e2e
 ```
 
-## API Endpoints
+Environment test yang didukung:
 
-### Auth (Public)
-- `POST /api/auth/register` — Register new account
-- `POST /api/auth/login` — Login
+- `BACKEND_TEST_PORT`
+- `BACKEND_TEST_BASE_URL`
 
-### Users (Authenticated)
-- `GET /api/users/me` — Get profile
-- `PATCH /api/users/me` — Update profile
+---
 
-### Branches
-- `GET /api/branches` — List all
-- `GET /api/branches/:id` — Get by ID
-- `POST /api/branches` — Create (Admin)
-- `PATCH /api/branches/:id` — Update (Admin)
-- `DELETE /api/branches/:id` — Delete (Admin)
+## Docker
 
-### Occupation Types
-- `GET /api/occupation-types` — List all
-- `GET /api/occupation-types/:id` — Get by ID
-- `POST /api/occupation-types` — Create (Admin)
-- `PATCH /api/occupation-types/:id` — Update (Admin)
-- `DELETE /api/occupation-types/:id` — Delete (Admin)
+Build image:
 
-### Insurance Requests
-- `POST /api/insurance-requests` — Create request (Customer)
-- `GET /api/insurance-requests/my-requests` — My requests (Customer)
-- `GET /api/insurance-requests` — List all (Admin)
-- `GET /api/insurance-requests/:id` — Get by ID
-- `PATCH /api/insurance-requests/:id/approve` — Approve (Admin)
-- `PATCH /api/insurance-requests/:id/reject` — Reject (Admin)
+```bash
+docker build -t bsp-go-be .
+```
 
-### Policies
-- `GET /api/policies` — List/search
-- `GET /api/policies/:id` — Get by ID
-- `POST /api/policies` — Create (Admin)
-- `PATCH /api/policies/:id` — Update (Admin)
-- `DELETE /api/policies/:id` — Delete (Admin)
+Run container:
 
-## Connecting to Frontend
+```bash
+docker run --rm -p 3001:3001 --env-file .env bsp-go-be
+```
 
-The frontend Next.js app already points to `http://localhost:3001/api`. Just start the Go backend on port 3001 (default) and the frontend will connect automatically.
+---
+
+## Deployment (Railway)
+
+Konfigurasi deploy tersedia di [railway.toml](railway.toml):
+
+- Builder: Dockerfile
+- Start command: `./main`
+- Healthcheck: `/api/health`
+- Restart policy: `ON_FAILURE`
+
+Pastikan environment production sudah diisi (minimal `DATABASE_URL` dan `JWT_SECRET`).
+
+---
+
+## Integrasi Frontend
+
+Frontend `bsp-fe` (Next.js) menggunakan base API `http://localhost:3001/api` pada local development.
+
+---
+
+## Troubleshooting
+
+### `DATABASE_URL is not set`
+
+- Periksa `.env`
+- Pastikan `DATABASE_URL` valid
+
+### `JWT_SECRET is not set`
+
+- Isi `JWT_SECRET` yang kuat (disarankan 32+ karakter)
+
+### CORS error
+
+- Tambahkan origin frontend ke `ALLOWED_ORIGINS`
+
+### Upload foto gagal
+
+- Periksa `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, dan bucket
+- Format didukung: JPG/JPEG/PNG/WEBP
+
+---
+
+## Referensi File Penting
+
+- [main.go](main.go)
+- [routes/routes.go](routes/routes.go)
+- [config/config.go](config/config.go)
+- [database/database.go](database/database.go)
+- [database/seed.go](database/seed.go)
+- [middleware/auth.go](middleware/auth.go)
+- [middleware/cors.go](middleware/cors.go)
+- [services/insurance_request.go](services/insurance_request.go)
+- [services/policy.go](services/policy.go)
+- [services/storage.go](services/storage.go)
+
+---
+
